@@ -377,7 +377,7 @@ class ChatSearchApp {
         
         if (apiKeyInput && saveApiKeyBtn) {
             // Save API key button
-            saveApiBtn.addEventListener('click', () => this.saveApiKey());
+            saveApiKeyBtn.addEventListener('click', () => this.saveApiKey());
             
             // Enter key to save
             apiKeyInput.addEventListener('keypress', (e) => {
@@ -434,6 +434,9 @@ class ChatSearchApp {
         
         // Update API key status
         this.updateApiKeyStatus();
+        
+        // Clear any existing error messages
+        this.hideError();
         
         // Show success message
         this.showSuccessMessage('API key saved successfully!');
@@ -898,9 +901,17 @@ class ChatSearchApp {
     showError(message) {
         const errorSection = document.getElementById('errorSection');
         if (errorSection) {
-            const errorText = errorSection.querySelector('span[data-translate="provideUserNS"]');
+            // Try to find any text element in the error section
+            let errorText = errorSection.querySelector('span[data-translate="provideUserNS"]');
+            if (!errorText) {
+                // If not found, look for any span or div with text content
+                errorText = errorSection.querySelector('span, div');
+            }
             if (errorText) {
                 errorText.textContent = message;
+            } else {
+                // If no text element found, create one
+                errorSection.innerHTML = `<span>${message}</span>`;
             }
             errorSection.style.display = 'block';
         }
