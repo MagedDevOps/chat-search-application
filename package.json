@@ -1,0 +1,27 @@
+{
+  "name": "chat-search-app",
+  "version": "1.0.0",
+  "description": "A web application for searching chat conversations from the Alexa360 API",
+  "main": "api/proxy.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build step required'",
+    "start": "node api/proxy.js"
+  },
+  "keywords": [
+    "chat",
+    "search",
+    "alexa360",
+    "api",
+    "vercel"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "vercel": "^32.0.0"
+  }
+}
