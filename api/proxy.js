@@ -16,7 +16,7 @@ function getProtocol(url) {
 }
 
 // Main handler function
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
     // Set CORS headers
     setCORSHeaders(res);
     

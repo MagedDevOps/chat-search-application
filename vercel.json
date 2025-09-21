@@ -1,6 +1,8 @@
 {
   "version": 2,
   "name": "chat-search-app",
+  "buildCommand": "echo 'No build step required'",
+  "outputDirectory": ".",
   "rewrites": [
     {
       "source": "/((?!api/).*)",
