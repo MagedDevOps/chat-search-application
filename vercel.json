@@ -1,16 +1,6 @@
 {
   "version": 2,
   "name": "chat-search-app",
-  "builds": [
-    {
-      "src": "api/proxy.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "search.html",
-      "use": "@vercel/static"
-    }
-  ],
   "routes": [
     {
       "src": "/api/proxy",
