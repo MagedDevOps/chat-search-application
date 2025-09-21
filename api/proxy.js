@@ -86,7 +86,9 @@ module.exports = async function handler(req, res) {
         const protocol = getProtocol(parsedUrl.protocol);
         console.log('Using protocol:', parsedUrl.protocol);
         
-        const proxyReq = protocol.request(options, (proxyRes) => {
+        let proxyReq;
+        try {
+            proxyReq = protocol.request(options, (proxyRes) => {
             console.log('Proxy response received:', { statusCode: proxyRes.statusCode, headers: proxyRes.headers });
             
             // Set response headers
@@ -111,22 +113,37 @@ module.exports = async function handler(req, res) {
             proxyRes.pipe(res);
         });
         
-        // Handle errors
-        proxyReq.on('error', (error) => {
-            console.error('Proxy request error:', error);
-            res.status(500).json({ 
-                error: 'Proxy request failed', 
-                message: error.message 
+            // Handle errors
+            proxyReq.on('error', (error) => {
+                console.error('Proxy request error:', error);
+                console.error('Error details:', {
+                    code: error.code,
+                    errno: error.errno,
+                    syscall: error.syscall,
+                    hostname: error.hostname
+                });
+                res.status(500).json({ 
+                    error: 'Proxy request failed', 
+                    message: error.message,
+                    code: error.code
+                });
             });
-        });
-        
-        // Handle timeout
-        proxyReq.setTimeout(30000, () => {
-            proxyReq.destroy();
-            res.status(504).json({ error: 'Request timeout' });
-        });
-        
-        proxyReq.end();
+            
+            // Handle timeout
+            proxyReq.setTimeout(30000, () => {
+                proxyReq.destroy();
+                res.status(504).json({ error: 'Request timeout' });
+            });
+            
+            proxyReq.end();
+        } catch (requestError) {
+            console.error('Request creation error:', requestError);
+            res.status(500).json({ 
+                error: 'Request creation failed', 
+                message: requestError.message 
+            });
+            return;
+        }
         
     } catch (error) {
         console.error('Handler error:', error);
