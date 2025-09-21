@@ -661,13 +661,13 @@ class ChatSearchApp {
         const timeoutId = setTimeout(() => this.currentAbortController.abort(), 30000);
         
         try {
-            const response = await fetch('/api/proxy', {
-                method: 'POST',
+            // Send URL as query parameter, not in body
+            const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}`;
+            const response = await fetch(proxyUrl, {
+                method: 'GET',
                 headers: {
-                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${this.apiKey}`
                 },
-                body: JSON.stringify({ url: url }),
                 signal: this.currentAbortController.signal
             });
             

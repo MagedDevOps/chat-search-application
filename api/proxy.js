@@ -33,8 +33,18 @@ module.exports = async function handler(req, res) {
     }
     
     try {
-        // Get the target URL from query parameters
-        const targetUrl = req.query.url;
+        // Get the target URL from query parameters or body
+        let targetUrl = req.query.url;
+        
+        // If not in query params, try to get from body (for POST requests)
+        if (!targetUrl && req.method === 'POST') {
+            try {
+                const body = JSON.parse(req.body || '{}');
+                targetUrl = body.url;
+            } catch (e) {
+                // Body parsing failed, continue with query param
+            }
+        }
         
         if (!targetUrl) {
             res.status(400).json({ error: 'Missing target URL parameter' });
@@ -122,7 +132,12 @@ module.exports = async function handler(req, res) {
         
         // Send request body for POST requests
         if (req.method === 'POST' && req.body) {
-            proxyReq.write(JSON.stringify(req.body));
+            try {
+                const bodyData = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+                proxyReq.write(bodyData);
+            } catch (e) {
+                console.error('Error writing request body:', e);
+            }
         }
         
         proxyReq.end();
