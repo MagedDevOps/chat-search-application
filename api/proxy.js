@@ -17,6 +17,8 @@ function getProtocol(url) {
 
 // Main handler function
 module.exports = async function handler(req, res) {
+    console.log('Proxy handler called:', { method: req.method, query: req.query, headers: req.headers });
+    
     // Set CORS headers
     setCORSHeaders(res);
     
@@ -33,18 +35,9 @@ module.exports = async function handler(req, res) {
     }
     
     try {
-        // Get the target URL from query parameters or body
-        let targetUrl = req.query.url;
-        
-        // If not in query params, try to get from body (for POST requests)
-        if (!targetUrl && req.method === 'POST') {
-            try {
-                const body = JSON.parse(req.body || '{}');
-                targetUrl = body.url;
-            } catch (e) {
-                // Body parsing failed, continue with query param
-            }
-        }
+        // Get the target URL from query parameters
+        const targetUrl = req.query.url;
+        console.log('Target URL:', targetUrl);
         
         if (!targetUrl) {
             res.status(400).json({ error: 'Missing target URL parameter' });
@@ -74,19 +67,13 @@ module.exports = async function handler(req, res) {
             method: req.method,
             headers: {
                 'User-Agent': 'Chat-Search-App/1.0',
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                'Accept': 'application/json'
             }
         };
         
         // Add authorization header if present
         if (req.headers.authorization) {
             options.headers['Authorization'] = req.headers.authorization;
-        }
-        
-        // Add content-type if present
-        if (req.headers['content-type']) {
-            options.headers['Content-Type'] = req.headers['content-type'];
         }
         
         // Make the request
@@ -129,16 +116,6 @@ module.exports = async function handler(req, res) {
             proxyReq.destroy();
             res.status(504).json({ error: 'Request timeout' });
         });
-        
-        // Send request body for POST requests
-        if (req.method === 'POST' && req.body) {
-            try {
-                const bodyData = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-                proxyReq.write(bodyData);
-            } catch (e) {
-                console.error('Error writing request body:', e);
-            }
-        }
         
         proxyReq.end();
         
