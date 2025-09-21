@@ -518,6 +518,17 @@ class ChatSearchApp {
             });
         }
         
+        // Clear live search button
+        const clearLiveSearchBtn = document.getElementById('clearLiveSearchBtn');
+        if (clearLiveSearchBtn) {
+            clearLiveSearchBtn.addEventListener('click', () => {
+                if (keywordInput) {
+                    keywordInput.value = '';
+                }
+                this.clearLiveSearch();
+            });
+        }
+        
         // Language selection
         const languageSelect = document.getElementById('languageSelect');
         if (languageSelect) {
@@ -777,8 +788,38 @@ class ChatSearchApp {
         });
         
         this.chatContainer.innerHTML = html;
-        // Note: The new API doesn't seem to have pagination info, so we'll hide it for now
-        this.paginationSection.style.display = 'none';
+        
+        // Show live search section
+        const liveSearchSection = document.getElementById('liveSearchSection');
+        if (liveSearchSection) {
+            liveSearchSection.style.display = 'block';
+        }
+        
+        // Show pagination section even if we don't have pagination data
+        // This will show the live search functionality
+        this.paginationSection.style.display = 'block';
+        
+        // Update pagination info
+        this.updatePaginationInfo(data.data.length);
+    }
+    
+    updatePaginationInfo(messageCount) {
+        const paginationInfo = document.getElementById('paginationInfo');
+        if (paginationInfo) {
+            paginationInfo.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted">Showing ${messageCount} message${messageCount !== 1 ? 's' : ''}</span>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.chatSearchApp.exportResults('json')">
+                            <i class="fas fa-download me-1"></i>Export JSON
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.chatSearchApp.exportResults('csv')">
+                            <i class="fas fa-file-csv me-1"></i>Export CSV
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
     }
     
     setupPagination(pagination) {
@@ -901,6 +942,12 @@ class ChatSearchApp {
         // Hide pagination
         if (this.paginationSection) {
             this.paginationSection.style.display = 'none';
+        }
+        
+        // Hide live search section
+        const liveSearchSection = document.getElementById('liveSearchSection');
+        if (liveSearchSection) {
+            liveSearchSection.style.display = 'none';
         }
         
         // Clear live search
