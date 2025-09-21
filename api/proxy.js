@@ -1,18 +1,9 @@
-const https = require('https');
-const http = require('http');
-const { URL } = require('url');
-
 // Enable CORS for all requests
 function setCORSHeaders(res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
     res.setHeader('Access-Control-Max-Age', '86400');
-}
-
-// Parse URL and determine protocol
-function getProtocol(url) {
-    return url.startsWith('https:') ? https : http;
 }
 
 // Main handler function
@@ -63,11 +54,8 @@ module.exports = async function handler(req, res) {
             return;
         }
         
-        // Prepare request options
-        const options = {
-            hostname: parsedUrl.hostname,
-            port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
-            path: parsedUrl.pathname + parsedUrl.search,
+        // Prepare fetch options
+        const fetchOptions = {
             method: req.method,
             headers: {
                 'User-Agent': 'Chat-Search-App/1.0',
@@ -77,73 +65,41 @@ module.exports = async function handler(req, res) {
         
         // Add authorization header if present
         if (req.headers.authorization) {
-            options.headers['Authorization'] = req.headers.authorization;
+            fetchOptions.headers['Authorization'] = req.headers.authorization;
         }
         
-        console.log('Request options:', options);
+        console.log('Fetch options:', fetchOptions);
+        console.log('Making request to:', targetUrl);
         
-        // Make the request
-        const protocol = getProtocol(parsedUrl.protocol);
-        console.log('Using protocol:', parsedUrl.protocol);
+        // Make the request using fetch
+        const response = await fetch(targetUrl, fetchOptions);
+        console.log('Response received:', { status: response.status, statusText: response.statusText });
         
-        let proxyReq;
-        try {
-            proxyReq = protocol.request(options, (proxyRes) => {
-            console.log('Proxy response received:', { statusCode: proxyRes.statusCode, headers: proxyRes.headers });
-            
-            // Set response headers
-            res.status(proxyRes.statusCode);
-            
-            // Copy relevant headers
-            const headersToCopy = [
-                'content-type',
-                'content-length',
-                'cache-control',
-                'etag',
-                'last-modified'
-            ];
-            
-            headersToCopy.forEach(header => {
-                if (proxyRes.headers[header]) {
-                    res.setHeader(header, proxyRes.headers[header]);
-                }
-            });
-            
-            // Pipe the response
-            proxyRes.pipe(res);
+        // Set response status
+        res.status(response.status);
+        
+        // Copy relevant headers
+        const headersToCopy = [
+            'content-type',
+            'content-length',
+            'cache-control',
+            'etag',
+            'last-modified'
+        ];
+        
+        headersToCopy.forEach(header => {
+            const value = response.headers.get(header);
+            if (value) {
+                res.setHeader(header, value);
+            }
         });
         
-            // Handle errors
-            proxyReq.on('error', (error) => {
-                console.error('Proxy request error:', error);
-                console.error('Error details:', {
-                    code: error.code,
-                    errno: error.errno,
-                    syscall: error.syscall,
-                    hostname: error.hostname
-                });
-                res.status(500).json({ 
-                    error: 'Proxy request failed', 
-                    message: error.message,
-                    code: error.code
-                });
-            });
-            
-            // Handle timeout
-            proxyReq.setTimeout(30000, () => {
-                proxyReq.destroy();
-                res.status(504).json({ error: 'Request timeout' });
-            });
-            
-            proxyReq.end();
-        } catch (requestError) {
-            console.error('Request creation error:', requestError);
-            res.status(500).json({ 
-                error: 'Request creation failed', 
-                message: requestError.message 
-            });
-            return;
-        }
+        // Get response body
+        const responseText = await response.text();
+        console.log('Response body length:', responseText.length);
+        
+        // Send the response
+        res.send(responseText);
         
     } catch (error) {
         console.error('Handler error:', error);
