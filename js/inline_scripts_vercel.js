@@ -765,8 +765,37 @@ class ChatSearchApp {
             return;
         }
         
+        // Store all messages for pagination
+        this.allMessages = data.data;
+        this.originalMessages = data.data; // Store original for live search restoration
+        this.currentPage = 1;
+        this.messagesPerPage = parseInt(document.getElementById('limit')?.value) || 20;
+        
+        // Display first page
+        this.displayCurrentPage();
+        
+        // Show live search section
+        const liveSearchSection = document.getElementById('liveSearchSection');
+        if (liveSearchSection) {
+            liveSearchSection.style.display = 'block';
+        }
+        
+        // Show pagination section
+        this.paginationSection.style.display = 'block';
+        
+        // Setup pagination controls
+        this.setupPagination();
+    }
+    
+    displayCurrentPage() {
+        if (!this.allMessages || !this.chatContainer) return;
+        
+        const startIndex = (this.currentPage - 1) * this.messagesPerPage;
+        const endIndex = startIndex + this.messagesPerPage;
+        const pageMessages = this.allMessages.slice(startIndex, endIndex);
+        
         let html = '';
-        data.data.forEach((message, index) => {
+        pageMessages.forEach((message, index) => {
             // Map the new API response format to our display format
             const isBot = message.type === 'out' || message.type === 'agent';
             const messageClass = isBot ? 'bot-message' : 'user-message';
@@ -776,7 +805,7 @@ class ChatSearchApp {
             const content = message.payload?.text || message.content || '';
             
             html += `
-                <div class="message-item ${messageClass}" data-index="${index}">
+                <div class="message-item ${messageClass}" data-index="${startIndex + index}">
                     <div class="message-header">
                         <span class="message-icon">${icon}</span>
                         <span class="message-sender">${sender}</span>
@@ -789,26 +818,20 @@ class ChatSearchApp {
         
         this.chatContainer.innerHTML = html;
         
-        // Show live search section
-        const liveSearchSection = document.getElementById('liveSearchSection');
-        if (liveSearchSection) {
-            liveSearchSection.style.display = 'block';
-        }
-        
-        // Show pagination section even if we don't have pagination data
-        // This will show the live search functionality
-        this.paginationSection.style.display = 'block';
-        
         // Update pagination info
-        this.updatePaginationInfo(data.data.length);
+        this.updatePaginationInfo();
     }
     
-    updatePaginationInfo(messageCount) {
+    updatePaginationInfo() {
         const paginationInfo = document.getElementById('paginationInfo');
-        if (paginationInfo) {
+        if (paginationInfo && this.allMessages) {
+            const totalMessages = this.allMessages.length;
+            const startIndex = (this.currentPage - 1) * this.messagesPerPage + 1;
+            const endIndex = Math.min(this.currentPage * this.messagesPerPage, totalMessages);
+            
             paginationInfo.innerHTML = `
                 <div class="d-flex justify-content-between align-items-center">
-                    <span class="text-muted">Showing ${messageCount} message${messageCount !== 1 ? 's' : ''}</span>
+                    <span class="text-muted">Showing ${startIndex}-${endIndex} of ${totalMessages} message${totalMessages !== 1 ? 's' : ''}</span>
                     <div class="btn-group" role="group">
                         <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.chatSearchApp.exportResults('json')">
                             <i class="fas fa-download me-1"></i>Export JSON
@@ -822,11 +845,11 @@ class ChatSearchApp {
         }
     }
     
-    setupPagination(pagination) {
-        if (!this.pagination || !pagination) return;
+    setupPagination() {
+        if (!this.pagination || !this.allMessages) return;
         
-        const { total, page, limit } = pagination;
-        const totalPages = Math.ceil(total / limit);
+        const totalMessages = this.allMessages.length;
+        const totalPages = Math.ceil(totalMessages / this.messagesPerPage);
         
         if (totalPages <= 1) {
             this.paginationSection.style.display = 'none';
@@ -836,19 +859,40 @@ class ChatSearchApp {
         let html = '';
         
         // Previous button
-        if (page > 1) {
-            html += `<li class="page-item"><a class="page-link" href="#" data-page="${page - 1}">« Previous</a></li>`;
+        if (this.currentPage > 1) {
+            html += `<li class="page-item"><a class="page-link" href="#" data-page="${this.currentPage - 1}">« Previous</a></li>`;
+        } else {
+            html += `<li class="page-item disabled"><span class="page-link">« Previous</span></li>`;
         }
         
         // Page numbers
-        for (let i = 1; i <= totalPages; i++) {
-            const activeClass = i === page ? 'active' : '';
+        const startPage = Math.max(1, this.currentPage - 2);
+        const endPage = Math.min(totalPages, this.currentPage + 2);
+        
+        if (startPage > 1) {
+            html += `<li class="page-item"><a class="page-link" href="#" data-page="1">1</a></li>`;
+            if (startPage > 2) {
+                html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            const activeClass = i === this.currentPage ? 'active' : '';
             html += `<li class="page-item ${activeClass}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`;
         }
         
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+            html += `<li class="page-item"><a class="page-link" href="#" data-page="${totalPages}">${totalPages}</a></li>`;
+        }
+        
         // Next button
-        if (page < totalPages) {
-            html += `<li class="page-item"><a class="page-link" href="#" data-page="${page + 1}">Next »</a></li>`;
+        if (this.currentPage < totalPages) {
+            html += `<li class="page-item"><a class="page-link" href="#" data-page="${this.currentPage + 1}">Next »</a></li>`;
+        } else {
+            html += `<li class="page-item disabled"><span class="page-link">Next »</span></li>`;
         }
         
         this.pagination.innerHTML = html;
@@ -856,16 +900,28 @@ class ChatSearchApp {
         // Add click handlers
         this.pagination.addEventListener('click', (e) => {
             e.preventDefault();
-            if (e.target.classList.contains('page-link')) {
+            if (e.target.classList.contains('page-link') && !e.target.parentElement.classList.contains('disabled')) {
                 const pageNum = parseInt(e.target.dataset.page);
                 this.goToPage(pageNum);
             }
         });
     }
     
-    async goToPage(page) {
-        // Implementation for pagination
-        console.log('Going to page:', page);
+    goToPage(page) {
+        if (!this.allMessages) return;
+        
+        const totalPages = Math.ceil(this.allMessages.length / this.messagesPerPage);
+        
+        if (page < 1 || page > totalPages) return;
+        
+        this.currentPage = page;
+        this.displayCurrentPage();
+        this.setupPagination();
+        
+        // Scroll to top of messages
+        if (this.chatContainer) {
+            this.chatContainer.scrollTop = 0;
+        }
     }
     
     performLiveSearch(keyword) {
@@ -874,19 +930,25 @@ class ChatSearchApp {
             return;
         }
         
-        const messages = document.querySelectorAll('.message-item');
-        let visibleCount = 0;
+        if (!this.allMessages) return;
         
-        messages.forEach(message => {
-            const content = message.querySelector('.message-content').textContent.toLowerCase();
-            const matches = content.includes(keyword.toLowerCase());
-            
-            message.style.display = matches ? 'block' : 'none';
-            if (matches) visibleCount++;
+        // Filter all messages based on keyword
+        const filteredMessages = this.allMessages.filter(message => {
+            const content = (message.payload?.text || message.content || '').toLowerCase();
+            return content.includes(keyword.toLowerCase());
         });
         
+        // Store filtered messages and reset pagination
+        this.filteredMessages = filteredMessages;
+        this.currentPage = 1;
+        this.allMessages = filteredMessages;
+        
+        // Display filtered results
+        this.displayCurrentPage();
+        this.setupPagination();
+        
         // Show search results info
-        this.showSearchResultsInfo(keyword, visibleCount);
+        this.showSearchResultsInfo(keyword, filteredMessages.length);
     }
     
     showSearchResultsInfo(keyword, count) {
@@ -913,10 +975,13 @@ class ChatSearchApp {
     }
     
     clearLiveSearch() {
-        const messages = document.querySelectorAll('.message-item');
-        messages.forEach(message => {
-            message.style.display = 'block';
-        });
+        // Restore original messages if we have them stored
+        if (this.originalMessages) {
+            this.allMessages = this.originalMessages;
+            this.currentPage = 1;
+            this.displayCurrentPage();
+            this.setupPagination();
+        }
         
         const infoElement = document.getElementById('searchResultsInfo');
         if (infoElement) {
