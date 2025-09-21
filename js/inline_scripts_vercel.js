@@ -651,11 +651,29 @@ class ChatSearchApp {
     }
     
     async fetchConversations(params) {
-        const baseUrl = 'https://api.alexa360.ai/v1/conversations';
-        const queryString = new URLSearchParams(params).toString();
+        const baseUrl = 'https://app.alexa360.io/api/subscriber/chat-messages';
+        
+        // Convert parameters to match the correct API format
+        const apiParams = {
+            user_ns: params.user_ns,
+            include_bot: params.include_bot || '0',
+            start_time: params.start_time ? Math.floor(new Date(params.start_time).getTime() / 1000) : '',
+            end_time: params.end_time ? Math.floor(new Date(params.end_time).getTime() / 1000) : '',
+            limit: params.limit || '20'
+        };
+        
+        // Remove empty parameters
+        Object.keys(apiParams).forEach(key => {
+            if (apiParams[key] === '' || apiParams[key] === null || apiParams[key] === undefined) {
+                delete apiParams[key];
+            }
+        });
+        
+        const queryString = new URLSearchParams(apiParams).toString();
         const url = `${baseUrl}?${queryString}`;
         
         console.log('🔍 Fetching conversations:', url);
+        console.log('API Parameters:', apiParams);
         
         this.currentAbortController = new AbortController();
         const timeoutId = setTimeout(() => this.currentAbortController.abort(), 30000);
@@ -703,25 +721,29 @@ class ChatSearchApp {
         
         let html = '';
         data.data.forEach((message, index) => {
-            const messageClass = message.is_bot ? 'bot-message' : 'user-message';
-            const icon = message.is_bot ? '🤖' : '👤';
-            const timestamp = new Date(message.timestamp).toLocaleString();
+            // Map the new API response format to our display format
+            const isBot = message.type === 'out' || message.type === 'agent';
+            const messageClass = isBot ? 'bot-message' : 'user-message';
+            const icon = isBot ? '🤖' : '👤';
+            const sender = isBot ? (message.type === 'agent' ? 'Agent' : 'Bot') : 'User';
+            const timestamp = new Date(message.ts * 1000).toLocaleString();
+            const content = message.payload?.text || message.content || '';
             
             html += `
                 <div class="message-item ${messageClass}" data-index="${index}">
                     <div class="message-header">
                         <span class="message-icon">${icon}</span>
-                        <span class="message-sender">${message.is_bot ? 'Bot' : 'User'}</span>
+                        <span class="message-sender">${sender}</span>
                         <span class="message-time">${timestamp}</span>
                     </div>
-                    <div class="message-content">${this.escapeHtml(message.message)}</div>
+                    <div class="message-content">${this.escapeHtml(content)}</div>
                 </div>
             `;
         });
         
         this.chatContainer.innerHTML = html;
-        this.setupPagination(data.pagination);
-        this.paginationSection.style.display = 'block';
+        // Note: The new API doesn't seem to have pagination info, so we'll hide it for now
+        this.paginationSection.style.display = 'none';
     }
     
     setupPagination(pagination) {
