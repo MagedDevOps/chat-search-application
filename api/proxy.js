@@ -40,6 +40,7 @@ module.exports = async function handler(req, res) {
         console.log('Target URL:', targetUrl);
         
         if (!targetUrl) {
+            console.log('No target URL provided');
             res.status(400).json({ error: 'Missing target URL parameter' });
             return;
         }
@@ -48,13 +49,16 @@ module.exports = async function handler(req, res) {
         let parsedUrl;
         try {
             parsedUrl = new URL(targetUrl);
+            console.log('Parsed URL:', parsedUrl);
         } catch (error) {
+            console.log('URL parsing error:', error.message);
             res.status(400).json({ error: 'Invalid URL format' });
             return;
         }
         
         // Only allow HTTPS URLs for security
         if (parsedUrl.protocol !== 'https:') {
+            console.log('Non-HTTPS URL rejected:', parsedUrl.protocol);
             res.status(400).json({ error: 'Only HTTPS URLs are allowed' });
             return;
         }
@@ -76,10 +80,15 @@ module.exports = async function handler(req, res) {
             options.headers['Authorization'] = req.headers.authorization;
         }
         
+        console.log('Request options:', options);
+        
         // Make the request
         const protocol = getProtocol(parsedUrl.protocol);
+        console.log('Using protocol:', parsedUrl.protocol);
         
         const proxyReq = protocol.request(options, (proxyRes) => {
+            console.log('Proxy response received:', { statusCode: proxyRes.statusCode, headers: proxyRes.headers });
+            
             // Set response headers
             res.status(proxyRes.statusCode);
             
