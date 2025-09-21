@@ -657,10 +657,38 @@ class ChatSearchApp {
         const apiParams = {
             user_ns: params.user_ns,
             include_bot: params.include_bot || '0',
-            start_time: params.start_time ? Math.floor(new Date(params.start_time).getTime() / 1000) : '',
-            end_time: params.end_time ? Math.floor(new Date(params.end_time).getTime() / 1000) : '',
             limit: params.limit || '20'
         };
+        
+        // Add date parameters only if they are provided and valid
+        const now = Math.floor(Date.now() / 1000);
+        const oneMonthAgo = now - (30 * 24 * 60 * 60); // 30 days ago
+        
+        if (params.start_time) {
+            const startDate = new Date(params.start_time);
+            if (!isNaN(startDate.getTime())) {
+                const startTimestamp = Math.floor(startDate.getTime() / 1000);
+                // Ensure start_time is within the last month
+                if (startTimestamp >= oneMonthAgo && startTimestamp <= now) {
+                    apiParams.start_time = startTimestamp;
+                } else {
+                    console.warn('Start time is outside the allowed range (last month)');
+                }
+            }
+        }
+        
+        if (params.end_time) {
+            const endDate = new Date(params.end_time);
+            if (!isNaN(endDate.getTime())) {
+                const endTimestamp = Math.floor(endDate.getTime() / 1000);
+                // Ensure end_time is within the last month
+                if (endTimestamp >= oneMonthAgo && endTimestamp <= now) {
+                    apiParams.end_time = endTimestamp;
+                } else {
+                    console.warn('End time is outside the allowed range (last month)');
+                }
+            }
+        }
         
         // Remove empty parameters
         Object.keys(apiParams).forEach(key => {
@@ -674,6 +702,13 @@ class ChatSearchApp {
         
         console.log('🔍 Fetching conversations:', url);
         console.log('API Parameters:', apiParams);
+        console.log('Date debugging:', {
+            start_time_input: params.start_time,
+            end_time_input: params.end_time,
+            start_time_converted: apiParams.start_time,
+            end_time_converted: apiParams.end_time,
+            current_timestamp: Math.floor(Date.now() / 1000)
+        });
         
         this.currentAbortController = new AbortController();
         const timeoutId = setTimeout(() => this.currentAbortController.abort(), 30000);
