@@ -63,70 +63,17 @@ module.exports = async function handler(req, res) {
             return;
         }
         
-        // Prepare request options
-        const options = {
-            hostname: parsedUrl.hostname,
-            port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
-            path: parsedUrl.pathname + parsedUrl.search,
-            method: req.method,
-            headers: {
-                'User-Agent': 'Chat-Search-App/1.0',
-                'Accept': 'application/json'
+        // For now, let's just return a test response to see if we get this far
+        console.log('About to make request to:', targetUrl);
+        res.status(200).json({ 
+            message: 'Proxy function working!',
+            targetUrl: targetUrl,
+            parsedUrl: {
+                hostname: parsedUrl.hostname,
+                pathname: parsedUrl.pathname,
+                search: parsedUrl.search
             }
-        };
-        
-        // Add authorization header if present
-        if (req.headers.authorization) {
-            options.headers['Authorization'] = req.headers.authorization;
-        }
-        
-        console.log('Request options:', options);
-        
-        // Make the request
-        const protocol = getProtocol(parsedUrl.protocol);
-        console.log('Using protocol:', parsedUrl.protocol);
-        
-        const proxyReq = protocol.request(options, (proxyRes) => {
-            console.log('Proxy response received:', { statusCode: proxyRes.statusCode, headers: proxyRes.headers });
-            
-            // Set response headers
-            res.status(proxyRes.statusCode);
-            
-            // Copy relevant headers
-            const headersToCopy = [
-                'content-type',
-                'content-length',
-                'cache-control',
-                'etag',
-                'last-modified'
-            ];
-            
-            headersToCopy.forEach(header => {
-                if (proxyRes.headers[header]) {
-                    res.setHeader(header, proxyRes.headers[header]);
-                }
-            });
-            
-            // Pipe the response
-            proxyRes.pipe(res);
         });
-        
-        // Handle errors
-        proxyReq.on('error', (error) => {
-            console.error('Proxy request error:', error);
-            res.status(500).json({ 
-                error: 'Proxy request failed', 
-                message: error.message 
-            });
-        });
-        
-        // Handle timeout
-        proxyReq.setTimeout(30000, () => {
-            proxyReq.destroy();
-            res.status(504).json({ error: 'Request timeout' });
-        });
-        
-        proxyReq.end();
         
     } catch (error) {
         console.error('Handler error:', error);
