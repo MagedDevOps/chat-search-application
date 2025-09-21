@@ -1,14 +1,10 @@
 {
   "version": 2,
   "name": "chat-search-app",
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/proxy",
-      "dest": "/api/proxy.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/search.html"
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
     }
   ],
   "functions": {
